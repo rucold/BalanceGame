@@ -57,6 +57,7 @@
         }
         /* 점수 그룹: 드래그 가능함을 알리기 위해 cursor 추가 */
         #target-group {
+            pointer-events: auto;
             position: absolute;
             width: 100%;
             height: var(--target-h);
@@ -102,6 +103,7 @@
             font-size: 30px;
             user-select: none;
             opacity: 0.3;
+            pointer-events: auto;
         }
         #arrow.active { cursor: grab; opacity: 1; }
         #arrow.vibrate { animation: vibrate-arrow 0.1s infinite; }
@@ -280,4 +282,5 @@
 
 </body>
 </html>
+
 
