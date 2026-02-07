@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Balance Game </title>
+    <title>BalanceGame </title>
     <style>
         :root {
             --bar-width: 60px;
@@ -23,7 +23,7 @@
         .game-container {
             display: flex;
             align-items: center;
-            gap: 30px;
+            gap: 30px; /* 화살표와 막대 사이 간격을 아주 가깝게 조절 */
             background: white;
             padding: 30px;
             border-radius: 20px;
@@ -42,7 +42,6 @@
             border: 2px solid #ddd;
             border-radius: 8px;
             font-weight: bold;
-            font-size: 16px;
         }
         .main-bar {
             width: var(--bar-width);
@@ -53,13 +52,18 @@
             overflow: hidden;
             border: 4px solid #333;
         }
+        /* 점수 그룹: 드래그 가능함을 알리기 위해 cursor 추가 */
         #target-group {
             position: absolute;
             width: 100%;
             height: var(--target-h);
             display: none;
             flex-direction: column;
+            cursor: grab;
+            z-index: 5;
         }
+        #target-group:active { cursor: grabbing; }
+        
         .score-box {
             height: 30px;
             display: flex;
@@ -68,53 +72,48 @@
             font-weight: bold;
             color: white;
             font-size: 14px;
+            pointer-events: none; /* 상위 그룹의 드래그 방해 금지 */
         }
         .s5 { background-color: #ff9a9e; }
         .s10 { background-color: #ff0844; z-index: 2; }
+
         #cover {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background-color: #ffd43b;
             display: none;
             z-index: 10;
         }
+
+        .arrow-area {
+            height: var(--bar-height);
+            position: relative;
+            width: 30px; /* 너비를 줄여서 막대에 더 붙임 */
+        }
+        #arrow {
+            position: absolute;
+            left: -60px; /* 막대 쪽으로 더 밀어넣음 */
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: not-allowed;
+            font-size: 30px;
+            user-select: none;
+            opacity: 0.3;
+        }
+        #arrow.active { cursor: grab; opacity: 1; }
+        #arrow.vibrate { animation: vibrate-arrow 0.1s infinite; }
+
+        @keyframes vibrate-arrow {
+            0%, 100% { transform: translateY(-50%) translateX(0px); }
+            25% { transform: translateY(-50%) translateX(-2px); }
+            75% { transform: translateY(-50%) translateX(2px); }
+        }
+
         .controller-section {
             display: flex;
             flex-direction: column;
             gap: 15px;
-        }
-        .arrow-area {
-            height: var(--bar-height);
-            position: relative;
-            width: 20px;
-        }
-        #arrow {
-            position: absolute;
-            left: -67px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: not-allowed; /* 기본 상태: 조작 불가 */
-            font-size: 30px;
-            user-select: none;
-            opacity: 0.5;
-            transition: opacity 0.3s;
-        }
-        #arrow.active {
-            cursor: grab;
-            opacity: 1;
-        }
-        #arrow.vibrate {
-            animation: vibrate-arrow 0.1s infinite;
-        }
-        @keyframes vibrate-arrow {
-            0% { transform: translateY(-50%) translateX(0px); }
-            25% { transform: translateY(-50%) translateX(-2px); }
-            50% { transform: translateY(-50%) translateX(0px); }
-            75% { transform: translateY(-50%) translateX(2px); }
-            100% { transform: translateY(-50%) translateX(0px); }
+            margin-left: 20px;
         }
         button {
             padding: 12px 24px;
@@ -125,33 +124,20 @@
             border-radius: 10px;
             transition: 0.2s;
         }
-        button:disabled {
-            background-color: #ccc !important;
-            cursor: not-allowed;
-        }
+        button:disabled { background-color: #ccc !important; cursor: not-allowed; }
         .btn-shuffle { background-color: #4dabf7; color: white; }
         .btn-hide { background-color: #fab005; color: white; }
         .btn-open { background-color: #22b8cf; color: white; }
-        
-        /* 모달 및 콘페티 생략 방지 */
+
+        /* 결과 모달 */
         .score-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); display: none; justify-content: center;
             align-items: center; z-index: 1000;
         }
         .score-modal.show { display: flex; }
-        .score-modal-content {
-            background: white; padding: 40px; border-radius: 20px; text-align: center;
-        }
+        .score-modal-content { background: white; padding: 40px; border-radius: 20px; text-align: center; }
         #final-score { font-size: 60px; font-weight: bold; color: #ff0844; }
-        .confetti {
-            position: absolute; width: 10px; height: 10px; border-radius: 50%;
-            animation: fall 3s forwards; pointer-events: none;
-        }
-        @keyframes fall {
-            0% { transform: translateY(-10vh) rotate(0); opacity: 1; }
-            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-        }
     </style>
 </head>
 <body>
@@ -159,7 +145,7 @@
 <div class="game-container">
     <div class="gauge-section">
         <input type="text" id="top-text" placeholder="입력">
-        <div class="main-bar">
+        <div class="main-bar" id="bar-container">
             <div id="target-group">
                 <div class="score-box s5">5</div>
                 <div class="score-box s10">10</div>
@@ -175,7 +161,7 @@
     </div>
 
     <div class="controller-section">
-        <button class="btn-shuffle" onclick="shuffle()">섞기</button>
+        <button class="btn-shuffle" onclick="shuffle()">랜덤</button>
         <button class="btn-hide" id="hide-btn" onclick="hide()">가리기</button>
         <button class="btn-open" id="open-btn" onclick="openResult()" disabled>오픈</button>
     </div>
@@ -190,99 +176,104 @@
 
 <script>
     const targetGroup = document.getElementById('target-group');
+    const barContainer = document.getElementById('bar-container');
     const cover = document.getElementById('cover');
     const arrow = document.getElementById('arrow');
     const arrowBoundary = document.getElementById('arrow-boundary');
     const openBtn = document.getElementById('open-btn');
     const scoreModal = document.getElementById('score-modal');
-    const finalScoreDisplay = document.getElementById('final-score');
 
-    let canMoveArrow = false; // 화살표 조작 가능 여부
+    let canMoveArrow = false;
+    let canMoveTarget = true; // 점수칸 이동 가능 여부
 
+    // 1. 섞기 (랜덤 위치 설정)
     function shuffle() {
         const barHeight = 500;
         const targetHeight = 90;
         const randomTop = Math.floor(Math.random() * (barHeight - targetHeight));
-        
         targetGroup.style.top = randomTop + 'px';
         targetGroup.style.display = 'flex';
         cover.style.display = 'none';
         
-        // 초기화
+        canMoveTarget = true; 
         canMoveArrow = false;
-        arrow.classList.remove('active', 'vibrate');
+        arrow.classList.remove('active');
         openBtn.disabled = true;
     }
 
+    // 2. 가리기 (점수칸 이동 잠금 및 화살표 활성화)
     function hide() {
+        if(targetGroup.style.display === 'none') {
+            alert('먼저 섞거나 점수칸을 배치해주세요!');
+            return;
+        }
         cover.style.display = 'block';
-        canMoveArrow = true; // 이제 화살표 조작 가능
+        canMoveTarget = false; // 가리면 점수칸 조작 불가
+        canMoveArrow = true; 
         arrow.classList.add('active');
-        openBtn.disabled = false; // 오픈 버튼 활성화
+        openBtn.disabled = false;
     }
 
+    // 3. 오픈
     function openResult() {
         cover.style.display = 'none';
-        canMoveArrow = false; // 결과 확인 시 조작 잠금
-	document.getElementById('open-btn').disabled = true; //오픈버튼 다시 잠금
+        canMoveArrow = false;
         arrow.classList.remove('active', 'vibrate');
         
-        const arrowY = parseFloat(arrow.style.top || 250); // 위치 값이 없으면 중앙
+        const arrowRect = arrow.getBoundingClientRect();
+        const barRect = barContainer.getBoundingClientRect();
+        const arrowY = arrowRect.top - barRect.top + (arrowRect.height / 2);
+        
         const targetTopY = parseFloat(targetGroup.style.top);
-        const tenPointCenterY = targetTopY + 45; 
-        const diff = Math.abs(arrowY - (tenPointCenterY - 15)); // 보정값 적용
+        const tenCenter = targetTopY + 45;
 
+        const diff = Math.abs(arrowY - tenCenter);
         let score = 0;
-        if (diff < 15) score = 10;
-        else if (diff < 45) score = 5;
+        if (diff <= 10) score = 10;
+        else if (diff <= 50) score = 5;
 
-        finalScoreDisplay.textContent = `${score}점`;
+        document.getElementById('final-score').textContent = `${score}점`;
         scoreModal.classList.add('show');
-
-        if (score === 10) triggerConfetti();
     }
 
-    // 화살표 드래그 로직
-    let isDragging = false;
-    const handleStart = () => { if(canMoveArrow) { isDragging = true; arrow.classList.add('vibrate'); } };
-    const handleEnd = () => { isDragging = false; arrow.classList.remove('vibrate'); };
-    const handleMove = (e) => {
-        if (!isDragging || !canMoveArrow) return;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        const rect = arrowBoundary.getBoundingClientRect();
-        let y = clientY - rect.top;
-        if (y < 0) y = 0;
-        if (y > rect.height) y = rect.height;
-        arrow.style.top = y + 'px';
-    };
+    // --- 점수칸 드래그 로직 ---
+    let isTargetDragging = false;
+    targetGroup.addEventListener('mousedown', () => { if(canMoveTarget) isTargetDragging = true; });
+    
+    // --- 화살표 드래그 로직 ---
+    let isArrowDragging = false;
+    arrow.addEventListener('mousedown', () => { if(canMoveArrow) { isArrowDragging = true; arrow.classList.add('vibrate'); } });
 
-    arrow.addEventListener('mousedown', handleStart);
-    window.addEventListener('mouseup', handleEnd);
-    window.addEventListener('mousemove', handleMove);
-    arrow.addEventListener('touchstart', (e) => { e.preventDefault(); handleStart(); });
-    window.addEventListener('touchend', handleEnd);
-    window.addEventListener('touchmove', handleMove);
+    window.addEventListener('mouseup', () => {
+        isTargetDragging = false;
+        isArrowDragging = false;
+        arrow.classList.remove('vibrate');
+    });
 
-    function triggerConfetti() {
-        for (let i = 0; i < 50; i++) {
-            const c = document.createElement('div');
-            c.classList.add('confetti');
-            c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 70%)`;
-            c.style.left = Math.random() * 100 + 'vw';
-            c.style.animationDelay = Math.random() * 0.5 + 's';
-            document.body.appendChild(c);
-            setTimeout(() => c.remove(), 3000);
+    window.addEventListener('mousemove', (e) => {
+        const barRect = barContainer.getBoundingClientRect();
+        
+        // 점수칸 이동
+        if (isTargetDragging && canMoveTarget) {
+            let y = e.clientY - barRect.top - 45; // 중앙 정렬
+            if (y < 0) y = 0;
+            if (y > 500 - 90) y = 500 - 90;
+            targetGroup.style.top = y + 'px';
+            targetGroup.style.display = 'flex'; // 드래그 시작 시 자동 표시
         }
-    }
+
+        // 화살표 이동
+        if (isArrowDragging && canMoveArrow) {
+            const arrowRect = arrowBoundary.getBoundingClientRect();
+            let y = e.clientY - arrowRect.top;
+            if (y < 0) y = 0;
+            if (y > arrowRect.height) y = arrowRect.height;
+            arrow.style.top = y + 'px';
+        }
+    });
 
     function closeScoreModal() { scoreModal.classList.remove('show'); }
 </script>
 
 </body>
-
 </html>
-
-
-
-
-
