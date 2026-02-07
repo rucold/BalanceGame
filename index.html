@@ -18,7 +18,10 @@
             height: 100vh;
             margin: 0;
             background-color: #f0f2f5;
-            overflow: hidden;
+            overflow: hidden; /* 스크롤바 제거 */
+            touch-action: none; /* 브라우저 기본 터치 액션(확대, 스크롤) 차단 */
+            -webkit-user-select: none; /* 텍스트 선택 방지 */
+            user-select: none;
         }
         .game-container {
             display: flex;
@@ -277,3 +280,4 @@
 
 </body>
 </html>
+
