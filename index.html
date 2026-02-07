@@ -224,6 +224,7 @@
         cover.style.display = 'none';
         canMoveArrow = false;
         arrow.classList.remove('active', 'vibrate');
+	openBtn.disabled = true;
         
         const arrowRect = arrow.getBoundingClientRect();
         const barRect = barContainer.getBoundingClientRect();
@@ -241,77 +242,85 @@
         scoreModal.classList.add('show');
     }
 
-    // --- 점수칸 드래그 로직 ---
     let isTargetDragging = false;
-    targetGroup.addEventListener('mousedown', () => { if(canMoveTarget) isTargetDragging = true; });
-    
-    // --- 화살표 드래그 로직 ---
-    let isArrowDragging = false;
-    arrow.addEventListener('mousedown', () => { if(canMoveArrow) { isArrowDragging = true; arrow.classList.add('vibrate'); } });
+let isArrowDragging = false;
+let targetOffsetY = 0; // 점수칸 전용 오프셋 변수 추가
 
-    window.addEventListener('mouseup', () => {
+// 드래그 시작 통합 함수
+function startDrag(e, type) {
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    if (type === 'target' && canMoveTarget) {
+        isTargetDragging = true;
+        // [중요] 터치한 지점과 점수칸 상단 사이의 거리를 계산하여 저장
+        const targetRect = targetGroup.getBoundingClientRect();
+        targetOffsetY = clientY - targetRect.top;
+    }
+    
+    if (type === 'arrow' && canMoveArrow) {
+        isArrowDragging = true;
+        arrow.classList.add('vibrate');
+    }
+}
+
+// 이동 로직 (window 이벤트에서 처리)
+function handleMove(e) {
+    if (!isTargetDragging && !isArrowDragging) return;
+    
+    // 모바일/PC 통합 좌표
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const barRect = barContainer.getBoundingClientRect();
+
+    // 1. 점수칸 이동 로직
+    if (isTargetDragging && canMoveTarget) {
+        e.preventDefault();
+        
+        // 오프셋을 적용하여 현재 손가락 위치에서 상대적으로 이동
+        let y = clientY - barRect.top - targetOffsetY;
+        
+        // 경계 제한 (상단 0, 하단 막대높이 - 점수칸높이)
+        const maxTop = 500 - 90;
+        if (y < 0) y = 0;
+        if (y > maxTop) y = maxTop;
+        
+        targetGroup.style.top = y + 'px';
+        targetGroup.style.display = 'flex';
+    }
+
+    // 2. 화살표 이동 로직
+    if (isArrowDragging && canMoveArrow) {
+        e.preventDefault();
+        const arrowRect = arrowBoundary.getBoundingClientRect();
+        let y = clientY - arrowRect.top;
+        
+        if (y < 0) y = 0;
+        if (y > arrowRect.height) y = arrowRect.height;
+        
+        arrow.style.top = y + 'px';
+    }
+}
+
+    // 이벤트 리스너
+    targetGroup.addEventListener('touchstart', (e) => startDrag(e, 'target'), { passive: false });
+    targetGroup.addEventListener('mousedown', (e) => startDrag(e, 'target'));
+
+    arrow.addEventListener('touchstart', (e) => startDrag(e, 'arrow'), { passive: false });
+    arrow.addEventListener('mousedown', (e) => startDrag(e, 'arrow'));
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+
+    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('touchend', endDrag);
+
+    function endDrag() {
         isTargetDragging = false;
         isArrowDragging = false;
         arrow.classList.remove('vibrate');
-    });
-
-    // 터치 지원 (모바일)
-    targetGroup.addEventListener('touchstart', () => { if(canMoveTarget) isTargetDragging = true; });
-
-    arrow.addEventListener('touchstart', (e) => {
-        isDragging = true;
-        arrow.classList.add('vibrate');
-        initialArrowY = e.touches[0].clientY - arrow.getBoundingClientRect().top;
-        arrow.style.cursor = 'grabbing';
-    });
-    window.addEventListener('touchend', () => {
-        isDragging = false;
-        arrow.classList.remove('vibrate');
-        arrow.style.cursor = 'grab';
-    });
-    window.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        e.preventDefault(); // 터치 드래그 시 스크롤 방지
-
-        const rect = arrowBoundary.getBoundingClientRect();
-        let y = e.touches[0].clientY - rect.top;
-
-        const arrowHalfHeight = arrow.offsetHeight / 2;
-        y = y - arrowHalfHeight; 
-        
-        if (y < -arrowHalfHeight) y = -arrowHalfHeight;
-        if (y > rect.height - arrowHalfHeight) y = rect.height - arrowHalfHeight;
-
-        arrow.style.top = y + 'px';
-    });
-
-    window.addEventListener('mousemove', (e) => {
-        const barRect = barContainer.getBoundingClientRect();
-        
-        // 점수칸 이동
-        if (isTargetDragging && canMoveTarget) {
-            let y = e.clientY - barRect.top - 45; // 중앙 정렬
-            if (y < 0) y = 0;
-            if (y > 500 - 90) y = 500 - 90;
-            targetGroup.style.top = y + 'px';
-            targetGroup.style.display = 'flex'; // 드래그 시작 시 자동 표시
-        }
-
-        // 화살표 이동
-        if (isArrowDragging && canMoveArrow) {
-            const arrowRect = arrowBoundary.getBoundingClientRect();
-            let y = e.clientY - arrowRect.top;
-            if (y < 0) y = 0;
-            if (y > arrowRect.height) y = arrowRect.height;
-            arrow.style.top = y + 'px';
-        }
-    });
+    }
 
     function closeScoreModal() { scoreModal.classList.remove('show'); }
 </script>
 
 </body>
 </html>
-
-
-
