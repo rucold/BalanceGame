@@ -255,6 +255,36 @@
         arrow.classList.remove('vibrate');
     });
 
+    // 터치 지원 (모바일)
+    targetGroup.addEventListener('touchstart', () => { if(canMoveTarget) isTargetDragging = true; });
+
+    arrow.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        arrow.classList.add('vibrate');
+        initialArrowY = e.touches[0].clientY - arrow.getBoundingClientRect().top;
+        arrow.style.cursor = 'grabbing';
+    });
+    window.addEventListener('touchend', () => {
+        isDragging = false;
+        arrow.classList.remove('vibrate');
+        arrow.style.cursor = 'grab';
+    });
+    window.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault(); // 터치 드래그 시 스크롤 방지
+
+        const rect = arrowBoundary.getBoundingClientRect();
+        let y = e.touches[0].clientY - rect.top;
+
+        const arrowHalfHeight = arrow.offsetHeight / 2;
+        y = y - arrowHalfHeight; 
+        
+        if (y < -arrowHalfHeight) y = -arrowHalfHeight;
+        if (y > rect.height - arrowHalfHeight) y = rect.height - arrowHalfHeight;
+
+        arrow.style.top = y + 'px';
+    });
+
     window.addEventListener('mousemove', (e) => {
         const barRect = barContainer.getBoundingClientRect();
         
@@ -282,5 +312,6 @@
 
 </body>
 </html>
+
 
 
